@@ -16,12 +16,12 @@ io.on("connection",(socket)=>{
 onlineUsers++
 io.emit("online",onlineUsers)
 
-// FIND PARTNER
+// FIND USER
 socket.on("find",(mode)=>{
 
 socket.mode = mode
 
-let index = waitingUsers.findIndex(u => u.mode === mode)
+let index = waitingUsers.findIndex(u => u.mode === mode && u.id !== socket.id)
 
 if(index !== -1){
 
@@ -41,7 +41,7 @@ waitingUsers.push(socket)
 
 })
 
-// MESSAGE
+// TEXT MESSAGE
 socket.on("message",(msg)=>{
 
 if(socket.partner){
@@ -50,14 +50,16 @@ io.to(socket.partner).emit("message",msg)
 
 })
 
-// NEXT
+// NEXT USER
 socket.on("next",()=>{
 
 if(socket.partner){
+
 io.to(socket.partner).emit("partner-left")
+
 }
 
-socket.partner = null
+socket.partner=null
 
 })
 
@@ -75,12 +77,15 @@ signal:data.signal
 socket.on("disconnect",()=>{
 
 onlineUsers--
+
 io.emit("online",onlineUsers)
 
-waitingUsers = waitingUsers.filter(u => u.id !== socket.id)
+waitingUsers = waitingUsers.filter(u=>u.id!==socket.id)
 
 if(socket.partner){
+
 io.to(socket.partner).emit("partner-left")
+
 }
 
 })
