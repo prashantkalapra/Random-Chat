@@ -1,49 +1,31 @@
 const socket = io()
 
-let mode="text"
-let localStream=null
-let peer=null
-let partnerId=null
+let localStream
+let peer
+let partnerId = null
+let mode = "text"
 
-const localVideo=document.getElementById("localVideo")
-const remoteVideo=document.getElementById("remoteVideo")
+const localVideo = document.getElementById("localVideo")
+const remoteVideo = document.getElementById("remoteVideo")
+const messages = document.getElementById("messages")
 
-// TEXT MODE
-function startText(){
+function addMessage(msg){
+let div = document.createElement("div")
+div.innerText = msg
+messages.appendChild(div)
+}
 
+async function startText(){
 mode="text"
-
-document.getElementById("start").style.display="none"
-document.getElementById("chat").style.display="block"
-
-localVideo.style.display="none"
-remoteVideo.style.display="none"
-
 socket.emit("find","text")
-
+addMessage("Searching for stranger...")
 }
 
-peer = new RTCPeerConnection({
-iceServers: [
-{ urls: "stun:stun.l.google.com:19302" },
-{
-urls: "turn:openrelay.metered.ca:80",
-username: "openrelayproject",
-credential: "openrelayproject"
-}
-]
-})
-
-// VIDEO MODE
 async function startVideo(){
 
 mode="video"
 
-document.getElementById("start").style.display="none"
-document.getElementById("chat").style.display="block"
-
-localVideo.style.display="inline"
-remoteVideo.style.display="inline"
+try{
 
 localStream = await navigator.mediaDevices.getUserMedia({
 video:true,
@@ -54,19 +36,19 @@ localVideo.srcObject = localStream
 
 socket.emit("find","video")
 
+addMessage("Searching for stranger...")
+
+}catch(err){
+alert("Camera permission denied")
 }
 
-// ONLINE USERS
-socket.on("online",(count)=>{
-document.getElementById("users").innerText=count
-})
+}
 
-// MATCHED
 socket.on("matched",(id)=>{
 
 partnerId=id
 
-addMessage("Connected to stranger")
+addMessage("Stranger connected")
 
 if(mode==="video"){
 createPeer()
@@ -74,14 +56,16 @@ createPeer()
 
 })
 
-// CREATE PEER
 function createPeer(){
 
 peer = new RTCPeerConnection({
 iceServers:[
 {urls:"stun:stun.l.google.com:19302"},
-{urls:"stun:stun1.l.google.com:19302"},
-{urls:"stun:stun2.l.google.com:19302"}
+{
+urls:"turn:openrelay.metered.ca:80",
+username:"openrelayproject",
+credential:"openrelayproject"
+}
 ]
 })
 
@@ -89,127 +73,124 @@ localStream.getTracks().forEach(track=>{
 peer.addTrack(track,localStream)
 })
 
-peer.ontrack=(e)=>{
-remoteVideo.srcObject=e.streams[0]
+peer.ontrack=(event)=>{
+remoteVideo.srcObject = event.streams[0]
 }
 
-peer.onicecandidate=(e)=>{
-
-if(e.candidate){
-
-socket.emit("signal",{
-to:partnerId,
-signal:{candidate:e.candidate}
+peer.onicecandidate=(event)=>{
+if(event.candidate){
+socket.emit("candidate",{
+candidate:event.candidate,
+to:partnerId
 })
+}
+}
+
+createOffer()
 
 }
 
-}
+async function createOffer(){
 
-startOffer()
-
-}
-
-// CREATE OFFER
-async function startOffer(){
-
-const offer=await peer.createOffer()
+let offer = await peer.createOffer()
 
 await peer.setLocalDescription(offer)
 
-socket.emit("signal",{
-to:partnerId,
-signal:{offer:offer}
+socket.emit("offer",{
+offer:offer,
+to:partnerId
 })
 
 }
 
-// RECEIVE SIGNAL
-socket.on("signal",async(data)=>{
+socket.on("offer",async(data)=>{
 
-// OFFER
-if(data.signal.offer){
+partnerId=data.from
 
 createPeer()
 
-await peer.setRemoteDescription(data.signal.offer)
+await peer.setRemoteDescription(new RTCSessionDescription(data.offer))
 
-const answer=await peer.createAnswer()
+let answer = await peer.createAnswer()
 
 await peer.setLocalDescription(answer)
 
-socket.emit("signal",{
-to:data.from,
-signal:{answer:answer}
+socket.emit("answer",{
+answer:answer,
+to:partnerId
 })
 
-}
+})
 
-// ANSWER
-if(data.signal.answer){
+socket.on("answer",async(data)=>{
 
-await peer.setRemoteDescription(data.signal.answer)
+await peer.setRemoteDescription(new RTCSessionDescription(data.answer))
 
-}
+})
 
-// ICE
-if(data.signal.candidate){
+socket.on("candidate",async(data)=>{
 
 try{
-await peer.addIceCandidate(data.signal.candidate)
+await peer.addIceCandidate(new RTCIceCandidate(data.candidate))
 }catch(e){}
 
-}
-
 })
 
-// TEXT MESSAGE
-socket.on("message",(msg)=>{
-addMessage("Stranger: "+msg)
-})
-
-// SEND MESSAGE
 function sendMessage(){
 
-let input=document.getElementById("message")
+let input=document.getElementById("messageInput")
 
-if(input.value.trim()==="") return
+let msg=input.value
 
-socket.emit("message",input.value)
+if(msg==="") return
 
-addMessage("You: "+input.value)
+addMessage("You: "+msg)
+
+socket.emit("message",{
+msg:msg,
+to:partnerId
+})
 
 input.value=""
 
 }
 
-// ADD MESSAGE
-function addMessage(msg){
+socket.on("message",(msg)=>{
+addMessage("Stranger: "+msg)
+})
 
-let box=document.getElementById("messages")
-
-box.innerHTML+="<div>"+msg+"</div>"
-
-box.scrollTop=box.scrollHeight
-
-}
-
-// NEXT USER
 function nextUser(){
 
-document.getElementById("messages").innerHTML=""
+addMessage("Finding new stranger...")
 
+// close old peer
 if(peer){
+peer.ontrack=null
+peer.onicecandidate=null
 peer.close()
 peer=null
 }
 
+// stop camera
+if(localStream){
+localStream.getTracks().forEach(track=>track.stop())
+localStream=null
+}
+
+remoteVideo.srcObject=null
+
 socket.emit("next")
+
+setTimeout(()=>{
 socket.emit("find",mode)
+},500)
 
 }
 
-// PARTNER LEFT
-socket.on("partner-left",()=>{
+socket.on("partner-disconnected",()=>{
+
 addMessage("Stranger disconnected")
+
+nextUser()
+
 })
