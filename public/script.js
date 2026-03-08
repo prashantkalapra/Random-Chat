@@ -2,23 +2,29 @@ const socket = io()
 
 let localStream
 let peer
-let partnerId = null
-let mode = "text"
+let partnerId=null
+let mode="text"
 
-const localVideo = document.getElementById("localVideo")
-const remoteVideo = document.getElementById("remoteVideo")
-const messages = document.getElementById("messages")
+const localVideo=document.getElementById("localVideo")
+const remoteVideo=document.getElementById("remoteVideo")
+const messages=document.getElementById("messages")
 
 function addMessage(msg){
-let div = document.createElement("div")
-div.innerText = msg
+
+let div=document.createElement("div")
+div.innerText=msg
 messages.appendChild(div)
+
 }
 
-async function startText(){
+function startText(){
+
 mode="text"
+
+addMessage("Searching stranger...")
+
 socket.emit("find","text")
-addMessage("Searching for stranger...")
+
 }
 
 async function startVideo(){
@@ -32,14 +38,16 @@ video:true,
 audio:true
 })
 
-localVideo.srcObject = localStream
+localVideo.srcObject=localStream
+
+addMessage("Searching stranger...")
 
 socket.emit("find","video")
 
-addMessage("Searching for stranger...")
-
 }catch(err){
-alert("Camera permission denied")
+
+alert("Camera permission needed")
+
 }
 
 }
@@ -58,32 +66,33 @@ createPeer()
 
 function createPeer(){
 
-peer = new RTCPeerConnection({
+peer=new RTCPeerConnection({
+
 iceServers:[
-{urls:"stun:stun.l.google.com:19302"},
-{
-urls:"turn:openrelay.metered.ca:80",
-username:"openrelayproject",
-credential:"openrelayproject"
-}
+{urls:"stun:stun.l.google.com:19302"}
 ]
+
 })
 
 localStream.getTracks().forEach(track=>{
 peer.addTrack(track,localStream)
 })
 
-peer.ontrack=(event)=>{
-remoteVideo.srcObject = event.streams[0]
+peer.ontrack=(e)=>{
+remoteVideo.srcObject=e.streams[0]
 }
 
-peer.onicecandidate=(event)=>{
-if(event.candidate){
+peer.onicecandidate=(e)=>{
+
+if(e.candidate){
+
 socket.emit("candidate",{
-candidate:event.candidate,
+candidate:e.candidate,
 to:partnerId
 })
+
 }
+
 }
 
 createOffer()
@@ -92,7 +101,7 @@ createOffer()
 
 async function createOffer(){
 
-let offer = await peer.createOffer()
+const offer=await peer.createOffer()
 
 await peer.setLocalDescription(offer)
 
@@ -109,9 +118,9 @@ partnerId=data.from
 
 createPeer()
 
-await peer.setRemoteDescription(new RTCSessionDescription(data.offer))
+await peer.setRemoteDescription(data.offer)
 
-let answer = await peer.createAnswer()
+const answer=await peer.createAnswer()
 
 await peer.setLocalDescription(answer)
 
@@ -124,25 +133,25 @@ to:partnerId
 
 socket.on("answer",async(data)=>{
 
-await peer.setRemoteDescription(new RTCSessionDescription(data.answer))
+await peer.setRemoteDescription(data.answer)
 
 })
 
 socket.on("candidate",async(data)=>{
 
 try{
-await peer.addIceCandidate(new RTCIceCandidate(data.candidate))
+await peer.addIceCandidate(data.candidate)
 }catch(e){}
 
 })
 
 function sendMessage(){
 
-let input=document.getElementById("messageInput")
+const input=document.getElementById("messageInput")
 
-let msg=input.value
+const msg=input.value
 
-if(msg==="") return
+if(!msg) return
 
 addMessage("You: "+msg)
 
@@ -156,25 +165,18 @@ input.value=""
 }
 
 socket.on("message",(msg)=>{
+
 addMessage("Stranger: "+msg)
+
 })
 
 function nextUser(){
 
 addMessage("Finding new stranger...")
 
-// close old peer
 if(peer){
-peer.ontrack=null
-peer.onicecandidate=null
 peer.close()
 peer=null
-}
-
-// stop camera
-if(localStream){
-localStream.getTracks().forEach(track=>track.stop())
-localStream=null
 }
 
 remoteVideo.srcObject=null
@@ -186,11 +188,3 @@ socket.emit("find",mode)
 },500)
 
 }
-
-socket.on("partner-disconnected",()=>{
-
-addMessage("Stranger disconnected")
-
-nextUser()
-
-})

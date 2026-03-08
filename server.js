@@ -1,97 +1,90 @@
-const express = require("express")
-const http = require("http")
-const { Server } = require("socket.io")
-
-const app = express()
-const server = http.createServer(app)
-const io = new Server(server)
+const express=require("express")
+const app=express()
+const http=require("http").createServer(app)
+const io=require("socket.io")(http)
 
 app.use(express.static("public"))
 
-let waitingUsers = []
-let onlineUsers = 0
+let waitingText=null
+let waitingVideo=null
 
 io.on("connection",(socket)=>{
 
-onlineUsers++
-io.emit("online",onlineUsers)
+socket.on("find",(type)=>{
 
-// FIND USER
-socket.on("find",(mode)=>{
+if(type==="text"){
 
-socket.mode = mode
+if(waitingText){
 
-let index = waitingUsers.findIndex(u => u.mode === mode && u.id !== socket.id)
+io.to(waitingText).emit("matched",socket.id)
+socket.emit("matched",waitingText)
 
-if(index !== -1){
-
-let partner = waitingUsers.splice(index,1)[0]
-
-socket.partner = partner.id
-partner.partner = socket.id
-
-socket.emit("matched",partner.id)
-partner.emit("matched",socket.id)
+waitingText=null
 
 }else{
 
-waitingUsers.push(socket)
+waitingText=socket.id
+
+}
+
+}
+
+if(type==="video"){
+
+if(waitingVideo){
+
+io.to(waitingVideo).emit("matched",socket.id)
+socket.emit("matched",waitingVideo)
+
+waitingVideo=null
+
+}else{
+
+waitingVideo=socket.id
+
+}
 
 }
 
 })
 
-// TEXT MESSAGE
-socket.on("message",(msg)=>{
+socket.on("offer",(data)=>{
 
-if(socket.partner){
-io.to(socket.partner).emit("message",msg)
-}
+io.to(data.to).emit("offer",{
+offer:data.offer,
+from:socket.id
+})
 
 })
 
-// NEXT USER
+socket.on("answer",(data)=>{
+
+io.to(data.to).emit("answer",{
+answer:data.answer
+})
+
+})
+
+socket.on("candidate",(data)=>{
+
+io.to(data.to).emit("candidate",{
+candidate:data.candidate
+})
+
+})
+
+socket.on("message",(data)=>{
+
+io.to(data.to).emit("message",data.msg)
+
+})
+
 socket.on("next",()=>{
 
-if(socket.partner){
-
-io.to(socket.partner).emit("partner-left")
-
-}
-
-socket.partner=null
-
-})
-
-// WEBRTC SIGNAL
-socket.on("signal",(data)=>{
-
-io.to(data.to).emit("signal",{
-from:socket.id,
-signal:data.signal
-})
-
-})
-
-// DISCONNECT
-socket.on("disconnect",()=>{
-
-onlineUsers--
-
-io.emit("online",onlineUsers)
-
-waitingUsers = waitingUsers.filter(u=>u.id!==socket.id)
-
-if(socket.partner){
-
-io.to(socket.partner).emit("partner-left")
-
-}
+socket.broadcast.emit("partner-disconnected")
 
 })
 
 })
 
-server.listen(3000,()=>{
-console.log("Server running on port 3000")
-})
+http.listen(3000)
