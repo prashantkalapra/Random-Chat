@@ -6,80 +6,87 @@ const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
 
-app.use(express.static(__dirname))
+app.use(express.static("public"))
 
-let waitingUser = null
+let waitingUsers = []
 let onlineUsers = 0
 
 io.on("connection",(socket)=>{
 
 onlineUsers++
-io.emit("onlineUsers",onlineUsers)
+io.emit("online",onlineUsers)
 
-function findPartner(){
+// FIND PARTNER
+socket.on("find",(mode)=>{
 
-if(waitingUser && waitingUser !== socket){
+socket.mode = mode
 
-socket.partner = waitingUser
-waitingUser.partner = socket
+let index = waitingUsers.findIndex(u => u.mode === mode)
 
-socket.emit("matched")
-waitingUser.emit("matched")
+if(index !== -1){
 
-waitingUser = null
+let partner = waitingUsers.splice(index,1)[0]
+
+socket.partner = partner.id
+partner.partner = socket.id
+
+socket.emit("matched",partner.id)
+partner.emit("matched",socket.id)
 
 }else{
 
-waitingUser = socket
+waitingUsers.push(socket)
 
 }
 
-}
+})
 
-findPartner()
-
+// MESSAGE
 socket.on("message",(msg)=>{
+
 if(socket.partner){
-socket.partner.emit("message",msg)
+io.to(socket.partner).emit("message",msg)
 }
+
 })
 
-socket.on("signal",(data)=>{
-if(socket.partner){
-socket.partner.emit("signal",data)
-}
-})
-
+// NEXT
 socket.on("next",()=>{
 
 if(socket.partner){
-socket.partner.emit("message","Stranger left")
-socket.partner.partner=null
+io.to(socket.partner).emit("partner-left")
 }
 
-socket.partner=null
-findPartner()
+socket.partner = null
 
 })
 
+// WEBRTC SIGNAL
+socket.on("signal",(data)=>{
+
+io.to(data.to).emit("signal",{
+from:socket.id,
+signal:data.signal
+})
+
+})
+
+// DISCONNECT
 socket.on("disconnect",()=>{
 
 onlineUsers--
-io.emit("onlineUsers",onlineUsers)
+io.emit("online",onlineUsers)
+
+waitingUsers = waitingUsers.filter(u => u.id !== socket.id)
 
 if(socket.partner){
-socket.partner.emit("message","Stranger disconnected")
-socket.partner.partner=null
+io.to(socket.partner).emit("partner-left")
 }
 
 })
 
 })
 
-const PORT = process.env.PORT || 3000
-
-server.listen(PORT,()=>{
-
-console.log("Server running")
-
+server.listen(3000,()=>{
+console.log("Server running on port 3000")
 })

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Random Chat</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div id="start">
+
+<h1>Random Chat</h1>
+
+<button onclick="startText()">Text Chat</button>
+<button onclick="startVideo()">Video Chat</button>
+
+</div>
+
+<div id="chat" style="display:none">
+
+<div class="header">
+Online Users: <span id="users">0</span>
+</div>
+
+<div class="videos">
+
+<video id="localVideo" autoplay muted style="display:none"></video>
+<video id="remoteVideo" autoplay style="display:none"></video>
+
+</div>
+
+<div id="messages"></div>
+
+<input id="message" placeholder="Type message">
+<button onclick="sendMessage()">Send</button>
+<button onclick="nextUser()">Next</button>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
