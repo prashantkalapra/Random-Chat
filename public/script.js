@@ -8,6 +8,7 @@ let partnerId=null
 const localVideo=document.getElementById("localVideo")
 const remoteVideo=document.getElementById("remoteVideo")
 
+// TEXT CHAT
 function startText(){
 
 mode="text"
@@ -15,10 +16,14 @@ mode="text"
 document.getElementById("start").style.display="none"
 document.getElementById("chat").style.display="block"
 
+localVideo.style.display="none"
+remoteVideo.style.display="none"
+
 socket.emit("find","text")
 
 }
 
+// VIDEO CHAT
 async function startVideo(){
 
 mode="video"
@@ -29,6 +34,8 @@ document.getElementById("chat").style.display="block"
 localVideo.style.display="inline"
 remoteVideo.style.display="inline"
 
+try{
+
 localStream = await navigator.mediaDevices.getUserMedia({
 video:true,
 audio:true
@@ -36,14 +43,22 @@ audio:true
 
 localVideo.srcObject = localStream
 
+}catch(e){
+
+alert("Camera permission denied")
+
+}
+
 socket.emit("find","video")
 
 }
 
+// ONLINE USERS
 socket.on("online",(count)=>{
 document.getElementById("users").innerText=count
 })
 
+// MATCHED
 socket.on("matched",(id)=>{
 
 partnerId=id
@@ -56,11 +71,14 @@ startPeer()
 
 })
 
+// CREATE PEER
 function startPeer(){
 
-peer=new RTCPeerConnection({
+peer = new RTCPeerConnection({
 iceServers:[
-{urls:"stun:stun.l.google.com:19302"}
+{urls:"stun:stun.l.google.com:19302"},
+{urls:"stun:stun1.l.google.com:19302"},
+{urls:"stun:stun2.l.google.com:19302"}
 ]
 })
 
@@ -98,13 +116,16 @@ signal:{offer:offer}
 
 }
 
+// RECEIVE SIGNAL
 socket.on("signal",async(data)=>{
 
 if(data.signal.offer){
 
-peer=new RTCPeerConnection({
+peer = new RTCPeerConnection({
 iceServers:[
-{urls:"stun:stun.l.google.com:19302"}
+{urls:"stun:stun.l.google.com:19302"},
+{urls:"stun:stun1.l.google.com:19302"},
+{urls:"stun:stun2.l.google.com:19302"}
 ]
 })
 
@@ -158,13 +179,17 @@ await peer.addIceCandidate(data.signal.candidate)
 
 })
 
+// RECEIVE MESSAGE
 socket.on("message",(msg)=>{
 addMessage("Stranger: "+msg)
 })
 
+// SEND MESSAGE
 function sendMessage(){
 
 let input=document.getElementById("message")
+
+if(input.value.trim()==="") return
 
 socket.emit("message",input.value)
 
@@ -174,6 +199,7 @@ input.value=""
 
 }
 
+// ADD MESSAGE
 function addMessage(msg){
 
 let box=document.getElementById("messages")
@@ -184,6 +210,7 @@ box.scrollTop=box.scrollHeight
 
 }
 
+// NEXT USER
 function nextUser(){
 
 document.getElementById("messages").innerHTML=""
@@ -198,6 +225,7 @@ socket.emit("find",mode)
 
 }
 
+// PARTNER LEFT
 socket.on("partner-left",()=>{
 addMessage("Stranger disconnected")
 })
