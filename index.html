@@ -1,172 +1,577 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Random Chat</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>void.chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg-deep: #03040f;
+    --bg-mid: #070b1a;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --blue: #4f8ef7;
+    --violet: #9b6dff;
+    --cyan: #38d9f5;
+    --pink: #f76fa0;
+    --text: #e8eeff;
+    --text-dim: #6b7498;
+    --you-bg: rgba(79,142,247,0.15);
+    --you-border: rgba(79,142,247,0.3);
+    --stranger-bg: rgba(155,109,255,0.1);
+    --stranger-border: rgba(155,109,255,0.25);
+    --system-color: #38d9f5;
+  }
 
-body{
-margin:0;
-font-family:Arial;
-background:linear-gradient(135deg,#667eea,#764ba2);
-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
 
-.container{
-width:420px;
-background:white;
-border-radius:12px;
-overflow:hidden;
-box-shadow:0 10px 30px rgba(0,0,0,0.3);
-}
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: relative;
+  }
 
-.header{
-background:#4facfe;
-color:white;
-text-align:center;
-padding:15px;
-font-size:20px;
-font-weight:bold;
-}
+  /* Cosmos background */
+  .cosmos {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+  }
 
-.chat{
-height:350px;
-padding:15px;
-overflow-y:auto;
-background:#f3f4f6;
-}
+  .cosmos-gradient {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(79,142,247,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(155,109,255,0.1) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(56,217,245,0.04) 0%, transparent 60%),
+      var(--bg-deep);
+  }
 
-.message{
-padding:10px;
-margin-bottom:10px;
-border-radius:8px;
-max-width:70%;
-}
+  canvas#stars {
+    position: absolute;
+    inset: 0;
+    opacity: 0.7;
+  }
 
-.you{
-background:#4facfe;
-color:white;
-margin-left:auto;
-}
+  /* Chat container */
+  .container {
+    position: relative;
+    z-index: 10;
+    width: 490px;
+    height: 650px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(7, 11, 26, 0.75);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 40px 100px rgba(0,0,0,0.8),
+      0 0 80px rgba(79,142,247,0.07),
+      inset 0 1px 0 rgba(255,255,255,0.07);
+    animation: rise 0.7s cubic-bezier(0.16,1,0.3,1) both;
+  }
 
-.stranger{
-background:#e5e7eb;
-}
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
 
-.input-area{
-display:flex;
-padding:10px;
-border-top:1px solid #ddd;
-}
+  /* Header */
+  .header {
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.025);
+    flex-shrink: 0;
+  }
 
-input{
-flex:1;
-padding:10px;
-border-radius:6px;
-border:1px solid #ccc;
-}
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
 
-button{
-margin-left:6px;
-padding:10px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-}
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--blue), var(--violet));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 18px rgba(79,142,247,0.38);
+    flex-shrink: 0;
+  }
 
-.send{
-background:#22c55e;
-color:white;
-}
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
 
-.next{
-background:#ef4444;
-color:white;
-}
+  .logo-text span { color: var(--blue); }
 
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(56,217,245,0.07);
+    border: 1px solid rgba(56,217,245,0.18);
+    border-radius: 20px;
+    padding: 5px 13px;
+    font-size: 11px;
+    color: var(--cyan);
+    font-weight: 500;
+    letter-spacing: 0.4px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 7px var(--cyan);
+    animation: blink 2.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Chat area */
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+
+  .chat::-webkit-scrollbar { width: 3px; }
+  .chat::-webkit-scrollbar-track { background: transparent; }
+  .chat::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.07);
+    border-radius: 4px;
+  }
+
+  /* Messages */
+  .message-row {
+    display: flex;
+    flex-direction: column;
+    animation: popIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .message-row.you { align-items: flex-end; }
+  .message-row.stranger { align-items: flex-start; }
+  .message-row.system { align-items: center; }
+
+  .message-label {
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  .you .message-label { color: rgba(79,142,247,0.55); }
+  .stranger .message-label { color: rgba(155,109,255,0.55); }
+
+  .bubble {
+    padding: 11px 15px;
+    border-radius: 16px;
+    max-width: 74%;
+    font-size: 13.5px;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+
+  .you .bubble {
+    background: var(--you-bg);
+    border: 1px solid var(--you-border);
+    color: #c6daff;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 18px rgba(79,142,247,0.12);
+  }
+
+  .stranger .bubble {
+    background: var(--stranger-bg);
+    border: 1px solid var(--stranger-border);
+    color: #ddd4ff;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 18px rgba(155,109,255,0.1);
+  }
+
+  .system .bubble {
+    background: rgba(56,217,245,0.06);
+    border: 1px solid rgba(56,217,245,0.14);
+    color: var(--system-color);
+    font-size: 11.5px;
+    padding: 7px 16px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+    max-width: 88%;
+    text-align: center;
+  }
+
+  .timestamp {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .empty-icon {
+    font-size: 44px;
+    opacity: 0.5;
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .empty-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: rgba(255,255,255,0.22);
+  }
+
+  .empty-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 220px;
+    line-height: 1.7;
+  }
+
+  /* Input area */
+  .input-wrap-outer {
+    padding: 12px 16px 16px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255,255,255,0.015);
+    border-top: 1px solid var(--glass-border);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  input#message {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    min-width: 0;
+  }
+
+  input#message::placeholder { color: var(--text-dim); }
+
+  input#message:focus {
+    border-color: rgba(79,142,247,0.4);
+    background: rgba(79,142,247,0.05);
+    box-shadow: 0 0 0 3px rgba(79,142,247,0.08);
+  }
+
+  .btn {
+    border: none;
+    cursor: pointer;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.2px;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 18px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .btn:active { transform: scale(0.95); }
+
+  .btn-send {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--violet) 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(79,142,247,0.32);
+  }
+
+  .btn-send:hover {
+    box-shadow: 0 6px 28px rgba(79,142,247,0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-next {
+    background: rgba(247,111,160,0.1);
+    color: var(--pink);
+    border: 1px solid rgba(247,111,160,0.22);
+  }
+
+  .btn-next:hover {
+    background: rgba(247,111,160,0.18);
+    border-color: rgba(247,111,160,0.4);
+  }
+
+  /* Footer */
+  .footer {
+    padding: 8px 22px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .footer-text {
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.1);
+    letter-spacing: 0.4px;
+  }
+
+  .sep { color: rgba(255,255,255,0.08); font-size: 10px; }
+
+  .online-count {
+    font-size: 10.5px;
+    color: rgba(56,217,245,0.4);
+    letter-spacing: 0.3px;
+  }
 </style>
-
 </head>
-
 <body>
+
+<div class="cosmos">
+  <div class="cosmos-gradient"></div>
+  <canvas id="stars"></canvas>
+</div>
 
 <div class="container">
 
-<div class="header">💬 Random Chat</div>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-icon">🌌</div>
+      <div class="logo-text">void<span>.chat</span></div>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span id="statusText">searching…</span>
+    </div>
+  </div>
 
-<div id="chat" class="chat"></div>
+  <!-- Messages -->
+  <div id="chat" class="chat">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🛸</div>
+      <div class="empty-title">Floating in the void</div>
+      <div class="empty-sub">Hit <strong style="color:rgba(247,111,160,0.85)">Next</strong> to connect with a random stranger</div>
+    </div>
+  </div>
 
-<div class="input-area">
+  <!-- Input -->
+  <div class="input-wrap-outer">
+    <div class="input-row">
+      <input id="message" placeholder="Type a message…" autocomplete="off" onkeydown="handleKey(event)">
+      <button class="btn btn-send" onclick="sendMessage()">↑ Send</button>
+      <button class="btn btn-next" onclick="nextStranger()">⚡ Next</button>
+    </div>
+  </div>
 
-<input id="message" placeholder="Type message">
-
-<button class="send" onclick="sendMessage()">Send</button>
-<button class="next" onclick="nextStranger()">Next</button>
-</div>
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-text">anonymous &amp; encrypted</span>
+    <span class="sep">·</span>
+    <span class="online-count" id="onlineCount">● 2,841 online</span>
+  </div>
 
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script>
+  // Stars
+  (function() {
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+    let W, H, stars = [];
 
-const socket = io()
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
 
-const chat = document.getElementById("chat")
+    function init() {
+      stars = [];
+      for (let i = 0; i < 180; i++) {
+        stars.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: Math.random() * 1.3 + 0.2,
+          o: Math.random() * 0.6 + 0.1,
+        });
+      }
+    }
 
-function addMessage(text,type){
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      stars.forEach(s => {
+        s.o += (Math.random() - 0.5) * 0.025;
+        s.o = Math.max(0.05, Math.min(0.85, s.o));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,215,255,${s.o})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
 
-let div=document.createElement("div")
+    resize(); init(); draw();
+    window.addEventListener('resize', () => { resize(); init(); });
+  })();
 
-div.className="message "+type
+  // Chat
+  const chatEl = document.getElementById('chat');
+  const statusText = document.getElementById('statusText');
 
-div.innerText=text
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 
-chat.appendChild(div)
+  function removeEmpty() {
+    const e = document.getElementById('emptyState');
+    if (e) e.remove();
+  }
 
-chat.scrollTop=chat.scrollHeight
+  function esc(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
 
-}
+  function addMessage(text, type) {
+    removeEmpty();
+    const row = document.createElement('div');
+    row.className = 'message-row ' + type;
 
-function sendMessage(){
+    if (type === 'system') {
+      row.innerHTML = `<div class="bubble">${esc(text)}</div>`;
+    } else {
+      const label = type === 'you' ? 'you' : 'stranger';
+      row.innerHTML = `
+        <div class="message-label">${label}</div>
+        <div class="bubble">${esc(text)}</div>
+        <div class="timestamp">${getTime()}</div>
+      `;
+    }
 
-let input=document.getElementById("message")
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
 
-let msg=input.value
+  function sendMessage() {
+    const input = document.getElementById('message');
+    const msg = input.value.trim();
+    if (!msg) return;
+    addMessage(msg, 'you');
+    if (typeof socket !== 'undefined') socket.emit('message', msg);
+    input.value = '';
+    input.focus();
+  }
 
-if(msg==="") return
+  function handleKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
+  }
 
-addMessage(msg,"you")
+  function nextStranger() {
+    chatEl.innerHTML = '';
+    chatEl.insertAdjacentHTML('beforeend', `
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon" style="animation:float 4s ease-in-out infinite">🌀</div>
+        <div class="empty-title">Finding someone new…</div>
+        <div class="empty-sub">Scanning the void for a signal</div>
+      </div>
+    `);
+    statusText.textContent = 'connecting…';
+    if (typeof socket !== 'undefined') socket.emit('next');
+  }
 
-socket.emit("message",msg)
+  // Fake online counter
+  (function() {
+    const el = document.getElementById('onlineCount');
+    let base = 2841;
+    setInterval(() => {
+      base += Math.floor(Math.random() * 7) - 3;
+      base = Math.max(2700, Math.min(3100, base));
+      el.textContent = `● ${base.toLocaleString()} online`;
+    }, 3500);
+  })();
 
-input.value=""
-
-}
-
-socket.on("message",(msg)=>{
-
-addMessage(msg,"stranger")
-
-})
-
-socket.on("matched",()=>{
-
-addMessage("Connected to stranger","stranger")
-
-})
-function nextStranger(){
-
-socket.emit("next")
-
-addMessage("Connecting to new stranger...","stranger")
-
-}
-
+  // Socket
+  if (typeof io !== 'undefined') {
+    const socket = io();
+    socket.on('message', msg => addMessage(msg, 'stranger'));
+    socket.on('matched', () => {
+      statusText.textContent = 'connected';
+      addMessage('✦ Stranger connected — say hello', 'system');
+    });
+    socket.on('disconnect', () => {
+      statusText.textContent = 'searching…';
+      addMessage('✦ Stranger has left the void', 'system');
+    });
+  } else {
+    statusText.textContent = 'demo mode';
+    setTimeout(() => addMessage('✦ Demo mode — connect a Socket.io server to go live', 'system'), 700);
+  }
 </script>
-
 </body>
 </html>
