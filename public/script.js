@@ -2,12 +2,12 @@ const socket = io()
 
 let localStream
 let peer
-let partnerId=null
-let mode="text"
+let partnerId = null
+let mode = "text"
 
-const localVideo=document.getElementById("localVideo")
-const remoteVideo=document.getElementById("remoteVideo")
-const messages=document.getElementById("messages")
+const localVideo = document.getElementById("localVideo")
+const remoteVideo = document.getElementById("remoteVideo")
+const messages = document.getElementById("messages")
 
 function addMessage(msg){
 
@@ -17,12 +17,14 @@ messages.appendChild(div)
 
 }
 
+socket.on("users",count=>{
+document.getElementById("users").innerText="Live Users: "+count
+})
+
 function startText(){
 
 mode="text"
-
 addMessage("Searching stranger...")
-
 socket.emit("find","text")
 
 }
@@ -31,28 +33,20 @@ async function startVideo(){
 
 mode="video"
 
-try{
-
 localStream = await navigator.mediaDevices.getUserMedia({
 video:true,
 audio:true
 })
 
-localVideo.srcObject=localStream
+localVideo.srcObject = localStream
 
 addMessage("Searching stranger...")
 
 socket.emit("find","video")
 
-}catch(err){
-
-alert("Camera permission needed")
-
 }
 
-}
-
-socket.on("matched",(id)=>{
+socket.on("matched",id=>{
 
 partnerId=id
 
@@ -67,22 +61,20 @@ createPeer()
 function createPeer(){
 
 peer=new RTCPeerConnection({
-
 iceServers:[
 {urls:"stun:stun.l.google.com:19302"}
 ]
-
 })
 
 localStream.getTracks().forEach(track=>{
 peer.addTrack(track,localStream)
 })
 
-peer.ontrack=(e)=>{
+peer.ontrack=e=>{
 remoteVideo.srcObject=e.streams[0]
 }
 
-peer.onicecandidate=(e)=>{
+peer.onicecandidate=e=>{
 
 if(e.candidate){
 
@@ -112,7 +104,7 @@ to:partnerId
 
 }
 
-socket.on("offer",async(data)=>{
+socket.on("offer",async data=>{
 
 partnerId=data.from
 
@@ -131,25 +123,19 @@ to:partnerId
 
 })
 
-socket.on("answer",async(data)=>{
-
+socket.on("answer",async data=>{
 await peer.setRemoteDescription(data.answer)
-
 })
 
-socket.on("candidate",async(data)=>{
-
-try{
+socket.on("candidate",async data=>{
 await peer.addIceCandidate(data.candidate)
-}catch(e){}
-
 })
 
 function sendMessage(){
 
-const input=document.getElementById("messageInput")
+let input=document.getElementById("messageInput")
 
-const msg=input.value
+let msg=input.value
 
 if(!msg) return
 
@@ -164,15 +150,11 @@ input.value=""
 
 }
 
-socket.on("message",(msg)=>{
-
+socket.on("message",msg=>{
 addMessage("Stranger: "+msg)
-
 })
 
 function nextUser(){
-
-addMessage("Finding new stranger...")
 
 if(peer){
 peer.close()
@@ -181,10 +163,10 @@ peer=null
 
 remoteVideo.srcObject=null
 
-socket.emit("next")
+socket.emit("next",{to:partnerId})
 
-setTimeout(()=>{
+addMessage("Searching new stranger...")
+
 socket.emit("find",mode)
-},500)
 
 }

@@ -1,46 +1,51 @@
-const express=require("express")
-const app=express()
-const http=require("http").createServer(app)
-const io=require("socket.io")(http)
+const express = require("express")
+const app = express()
+const http = require("http").createServer(app)
+const io = require("socket.io")(http)
 
 app.use(express.static("public"))
 
-let waitingText=null
-let waitingVideo=null
+let waitingVideo = null
+let waitingText = null
 
-io.on("connection",(socket)=>{
+let users = 0
 
-socket.on("find",(type)=>{
+io.on("connection", socket => {
 
-if(type==="text"){
+users++
+io.emit("users", users)
 
-if(waitingText){
+socket.on("find", type => {
 
-io.to(waitingText).emit("matched",socket.id)
-socket.emit("matched",waitingText)
-
-waitingText=null
-
-}else{
-
-waitingText=socket.id
-
-}
-
-}
-
-if(type==="video"){
+if(type === "video"){
 
 if(waitingVideo){
 
-io.to(waitingVideo).emit("matched",socket.id)
-socket.emit("matched",waitingVideo)
+io.to(waitingVideo).emit("matched", socket.id)
+socket.emit("matched", waitingVideo)
 
-waitingVideo=null
+waitingVideo = null
 
 }else{
 
-waitingVideo=socket.id
+waitingVideo = socket.id
+
+}
+
+}
+
+if(type === "text"){
+
+if(waitingText){
+
+io.to(waitingText).emit("matched", socket.id)
+socket.emit("matched", waitingText)
+
+waitingText = null
+
+}else{
+
+waitingText = socket.id
 
 }
 
@@ -48,7 +53,7 @@ waitingVideo=socket.id
 
 })
 
-socket.on("offer",(data)=>{
+socket.on("offer", data => {
 
 io.to(data.to).emit("offer",{
 offer:data.offer,
@@ -57,7 +62,7 @@ from:socket.id
 
 })
 
-socket.on("answer",(data)=>{
+socket.on("answer", data => {
 
 io.to(data.to).emit("answer",{
 answer:data.answer
@@ -65,7 +70,7 @@ answer:data.answer
 
 })
 
-socket.on("candidate",(data)=>{
+socket.on("candidate", data => {
 
 io.to(data.to).emit("candidate",{
 candidate:data.candidate
@@ -73,18 +78,25 @@ candidate:data.candidate
 
 })
 
-socket.on("message",(data)=>{
+socket.on("message", data => {
 
-io.to(data.to).emit("message",data.msg)
-
-})
-
-socket.on("next",()=>{
-
-socket.broadcast.emit("partner-disconnected")
+io.to(data.to).emit("message", data.msg)
 
 })
 
+socket.on("next", data => {
+
+io.to(data.to).emit("partner-left")
+
 })
 
-http.listen(3000)
+socket.on("disconnect", () => {
+
+users--
+io.emit("users", users)
+
+})
+
+})
+
+http.listen(process.env.PORT || 3000)
