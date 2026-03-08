@@ -8,8 +8,7 @@ const io = new Server(server)
 
 app.use(express.static("public"))
 
-let waitingText = null
-let waitingVideo = null
+let waitingUser = null
 let onlineUsers = 0
 
 io.on("connection", socket => {
@@ -17,52 +16,34 @@ io.on("connection", socket => {
 onlineUsers++
 io.emit("users", onlineUsers)
 
-socket.on("find", mode => {
+socket.on("find", () => {
 
-if(mode === "text"){
+if(waitingUser){
 
-if(waitingText){
+socket.partner = waitingUser
+io.to(waitingUser).emit("matched", socket.id)
+socket.emit("matched", waitingUser)
 
-socket.partner = waitingText
-io.to(waitingText).emit("matched", socket.id)
-socket.emit("matched", waitingText)
-
-waitingText = null
+waitingUser = null
 
 }else{
 
-waitingText = socket.id
+waitingUser = socket.id
 
 }
 
-}
-
-if(mode === "video"){
-
-if(waitingVideo){
-
-socket.partner = waitingVideo
-io.to(waitingVideo).emit("matched", socket.id)
-socket.emit("matched", waitingVideo)
-
-waitingVideo = null
-
-}else{
-
-waitingVideo = socket.id
-
-}
-
-}
-
-})
-
-socket.on("signal", data => {
-io.to(data.to).emit("signal", data)
 })
 
 socket.on("message", data => {
+
 io.to(data.to).emit("message", data.msg)
+
+})
+
+socket.on("typing", data => {
+
+io.to(data.to).emit("typing")
+
 })
 
 socket.on("next", () => {
