@@ -6,20 +6,15 @@ const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
 
-
-const PORT = process.env.PORT || 3000
-
-server.listen(PORT, () => {
-  console.log("Server running")
-})
-
 app.use(express.static(__dirname))
 
 let waitingUser = null
+let onlineUsers = 0
 
 io.on("connection",(socket)=>{
 
-console.log("User connected")
+onlineUsers++
+io.emit("onlineUsers",onlineUsers)
 
 function findPartner(){
 
@@ -46,9 +41,7 @@ findPartner()
 socket.on("message",(msg)=>{
 
 if(socket.partner){
-
 socket.partner.emit("message",msg)
-
 }
 
 })
@@ -56,35 +49,33 @@ socket.partner.emit("message",msg)
 socket.on("next",()=>{
 
 if(socket.partner){
-
 socket.partner.emit("message","Stranger left chat")
-
 socket.partner.partner = null
-
 }
 
 socket.partner = null
-
 findPartner()
 
 })
 
 socket.on("disconnect",()=>{
 
+onlineUsers--
+io.emit("onlineUsers",onlineUsers)
+
 if(socket.partner){
-
 socket.partner.emit("message","Stranger disconnected")
-
 socket.partner.partner = null
-
 }
 
 })
 
 })
 
-server.listen(3000,()=>{
+const PORT = process.env.PORT || 3000
 
-console.log("Server running on port 3000")
+server.listen(PORT,()=>{
+
+console.log("Server running")
 
 })
