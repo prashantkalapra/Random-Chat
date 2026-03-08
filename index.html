@@ -1,90 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Random Chat</title>
+<title>Video Random Chat</title>
 
 <style>
 
 body{
 margin:0;
 font-family:Arial;
-background:linear-gradient(135deg,#667eea,#764ba2);
-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-}
-
-.container{
-width:420px;
-background:white;
-border-radius:12px;
-overflow:hidden;
-box-shadow:0 10px 30px rgba(0,0,0,0.3);
+background:#111;
+color:white;
+text-align:center;
 }
 
 .header{
-background:#4facfe;
-color:white;
-text-align:center;
-padding:15px;
-font-size:18px;
-font-weight:bold;
+padding:10px;
+background:#222;
+}
+
+.video-area{
+display:flex;
+justify-content:center;
+gap:20px;
+margin-top:20px;
+}
+
+video{
+width:300px;
+height:220px;
+background:black;
+border-radius:10px;
 }
 
 .chat{
-height:350px;
-padding:15px;
-overflow-y:auto;
-background:#f3f4f6;
-}
-
-.message{
+width:400px;
+height:200px;
+margin:auto;
+background:#222;
+overflow:auto;
 padding:10px;
-margin-bottom:10px;
-border-radius:8px;
-max-width:70%;
-}
-
-.you{
-background:#4facfe;
-color:white;
-margin-left:auto;
-}
-
-.stranger{
-background:#e5e7eb;
-}
-
-.input-area{
-display:flex;
-padding:10px;
-border-top:1px solid #ddd;
+margin-top:20px;
 }
 
 input{
-flex:1;
-padding:10px;
-border-radius:6px;
-border:1px solid #ccc;
+width:250px;
+padding:8px;
 }
 
 button{
-margin-left:6px;
-padding:10px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-}
-
-.send{
-background:#22c55e;
-color:white;
-}
-
-.next{
-background:#ef4444;
-color:white;
+padding:8px;
+margin-left:5px;
 }
 
 </style>
@@ -93,23 +58,21 @@ color:white;
 
 <body>
 
-<div class="container">
-
 <div class="header">
-💬 Random Chat | 👥 <span id="users">0</span> online
+🎥 Random Video Chat | 👥 <span id="users">0</span>
+</div>
+
+<div class="video-area">
+<video id="localVideo" autoplay muted></video>
+<video id="remoteVideo" autoplay></video>
 </div>
 
 <div id="chat" class="chat"></div>
 
-<div class="input-area">
-
+<div>
 <input id="message" placeholder="Type message">
-
-<button class="send" onclick="sendMessage()">Send</button>
-<button class="next" onclick="nextStranger()">Next</button>
-
-</div>
-
+<button onclick="sendMessage()">Send</button>
+<button onclick="nextUser()">Next</button>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -120,14 +83,101 @@ const socket = io()
 
 const chat = document.getElementById("chat")
 
-function addMessage(text,type){
+const localVideo = document.getElementById("localVideo")
+const remoteVideo = document.getElementById("remoteVideo")
+
+let localStream
+let peer
+
+async function startCamera(){
+
+localStream = await navigator.mediaDevices.getUserMedia({
+video:true,
+audio:true
+})
+
+localVideo.srcObject = localStream
+
+}
+
+startCamera()
+
+function createPeer(){
+
+peer = new RTCPeerConnection()
+
+localStream.getTracks().forEach(track=>{
+peer.addTrack(track,localStream)
+})
+
+peer.ontrack = e=>{
+remoteVideo.srcObject = e.streams[0]
+}
+
+peer.onicecandidate = e=>{
+if(e.candidate){
+socket.emit("signal",{
+candidate:e.candidate
+})
+}
+}
+
+}
+
+socket.on("signal",async data=>{
+
+if(data.offer){
+
+createPeer()
+
+await peer.setRemoteDescription(
+new RTCSessionDescription(data.offer)
+)
+
+const answer = await peer.createAnswer()
+
+await peer.setLocalDescription(answer)
+
+socket.emit("signal",{answer})
+
+}
+
+if(data.answer){
+
+await peer.setRemoteDescription(
+new RTCSessionDescription(data.answer)
+)
+
+}
+
+if(data.candidate){
+
+try{
+await peer.addIceCandidate(data.candidate)
+}catch{}
+
+}
+
+})
+
+socket.on("matched",async()=>{
+
+createPeer()
+
+const offer = await peer.createOffer()
+
+await peer.setLocalDescription(offer)
+
+socket.emit("signal",{offer})
+
+addMessage("Connected to stranger")
+
+})
+
+function addMessage(msg){
 
 let div=document.createElement("div")
-
-div.className="message "+type
-
-div.innerText=text
-
+div.innerText=msg
 chat.appendChild(div)
 
 chat.scrollTop=chat.scrollHeight
@@ -138,42 +188,37 @@ function sendMessage(){
 
 let input=document.getElementById("message")
 
-let msg=input.value
+socket.emit("message",input.value)
 
-if(msg==="") return
-
-addMessage(msg,"you")
-
-socket.emit("message",msg)
+addMessage("You: "+input.value)
 
 input.value=""
 
 }
 
-function nextStranger(){
+socket.on("message",(msg)=>{
+
+addMessage("Stranger: "+msg)
+
+})
+
+function nextUser(){
 
 socket.emit("next")
 
-addMessage("Connecting to new stranger...","stranger")
+addMessage("Connecting new stranger...")
 
 }
 
-socket.on("message",(msg)=>{
-
-addMessage(msg,"stranger")
-
-})
-
-socket.on("matched",()=>{
-
-addMessage("Connected to stranger","stranger")
-
-})
-
 socket.on("onlineUsers",(count)=>{
 
-document.getElementById("users").innerText = count
+document.getElementById("users").innerText=count
 
+})
+new RTCPeerConnection({
+iceServers:[
+{urls:"stun:stun.l.google.com:19302"}
+]
 })
 
 </script>

@@ -39,21 +39,25 @@ waitingUser = socket
 findPartner()
 
 socket.on("message",(msg)=>{
-
 if(socket.partner){
 socket.partner.emit("message",msg)
 }
+})
 
+socket.on("signal",(data)=>{
+if(socket.partner){
+socket.partner.emit("signal",data)
+}
 })
 
 socket.on("next",()=>{
 
 if(socket.partner){
-socket.partner.emit("message","Stranger left chat")
-socket.partner.partner = null
+socket.partner.emit("message","Stranger left")
+socket.partner.partner=null
 }
 
-socket.partner = null
+socket.partner=null
 findPartner()
 
 })
@@ -65,7 +69,7 @@ io.emit("onlineUsers",onlineUsers)
 
 if(socket.partner){
 socket.partner.emit("message","Stranger disconnected")
-socket.partner.partner = null
+socket.partner.partner=null
 }
 
 })
