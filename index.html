@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Random Chat</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#667eea,#764ba2);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.container{
+width:420px;
+background:white;
+border-radius:12px;
+overflow:hidden;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.header{
+background:#4facfe;
+color:white;
+text-align:center;
+padding:15px;
+font-size:20px;
+font-weight:bold;
+}
+
+.chat{
+height:350px;
+padding:15px;
+overflow-y:auto;
+background:#f3f4f6;
+}
+
+.message{
+padding:10px;
+margin-bottom:10px;
+border-radius:8px;
+max-width:70%;
+}
+
+.you{
+background:#4facfe;
+color:white;
+margin-left:auto;
+}
+
+.stranger{
+background:#e5e7eb;
+}
+
+.input-area{
+display:flex;
+padding:10px;
+border-top:1px solid #ddd;
+}
+
+input{
+flex:1;
+padding:10px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+margin-left:6px;
+padding:10px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.send{
+background:#22c55e;
+color:white;
+}
+
+.next{
+background:#ef4444;
+color:white;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">💬 Random Chat</div>
+
+<div id="chat" class="chat"></div>
+
+<div class="input-area">
+
+<input id="message" placeholder="Type message">
+
+<button class="send" onclick="sendMessage()">Send</button>
+<button class="next" onclick="nextStranger()">Next</button>
+</div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const socket = io()
+
+const chat = document.getElementById("chat")
+
+function addMessage(text,type){
+
+let div=document.createElement("div")
+
+div.className="message "+type
+
+div.innerText=text
+
+chat.appendChild(div)
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+function sendMessage(){
+
+let input=document.getElementById("message")
+
+let msg=input.value
+
+if(msg==="") return
+
+addMessage(msg,"you")
+
+socket.emit("message",msg)
+
+input.value=""
+
+}
+
+socket.on("message",(msg)=>{
+
+addMessage(msg,"stranger")
+
+})
+
+socket.on("matched",()=>{
+
+addMessage("Connected to stranger","stranger")
+
+})
+function nextStranger(){
+
+socket.emit("next")
+
+addMessage("Connecting to new stranger...","stranger")
+
+}
+
+</script>
+
+</body>
+</html>
