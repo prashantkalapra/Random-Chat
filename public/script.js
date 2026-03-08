@@ -8,7 +8,7 @@ let partnerId=null
 const localVideo=document.getElementById("localVideo")
 const remoteVideo=document.getElementById("remoteVideo")
 
-// TEXT CHAT
+// TEXT MODE
 function startText(){
 
 mode="text"
@@ -23,7 +23,7 @@ socket.emit("find","text")
 
 }
 
-// VIDEO CHAT
+// VIDEO MODE
 async function startVideo(){
 
 mode="video"
@@ -34,20 +34,12 @@ document.getElementById("chat").style.display="block"
 localVideo.style.display="inline"
 remoteVideo.style.display="inline"
 
-try{
-
 localStream = await navigator.mediaDevices.getUserMedia({
 video:true,
 audio:true
 })
 
 localVideo.srcObject = localStream
-
-}catch(e){
-
-alert("Camera permission denied")
-
-}
 
 socket.emit("find","video")
 
@@ -66,13 +58,13 @@ partnerId=id
 addMessage("Connected to stranger")
 
 if(mode==="video"){
-startPeer()
+createPeer()
 }
 
 })
 
 // CREATE PEER
-function startPeer(){
+function createPeer(){
 
 peer = new RTCPeerConnection({
 iceServers:[
@@ -103,15 +95,20 @@ signal:{candidate:e.candidate}
 
 }
 
-peer.createOffer().then(offer=>{
+startOffer()
 
-peer.setLocalDescription(offer)
+}
+
+// CREATE OFFER
+async function startOffer(){
+
+const offer=await peer.createOffer()
+
+await peer.setLocalDescription(offer)
 
 socket.emit("signal",{
 to:partnerId,
 signal:{offer:offer}
-})
-
 })
 
 }
@@ -119,36 +116,10 @@ signal:{offer:offer}
 // RECEIVE SIGNAL
 socket.on("signal",async(data)=>{
 
+// OFFER
 if(data.signal.offer){
 
-peer = new RTCPeerConnection({
-iceServers:[
-{urls:"stun:stun.l.google.com:19302"},
-{urls:"stun:stun1.l.google.com:19302"},
-{urls:"stun:stun2.l.google.com:19302"}
-]
-})
-
-localStream.getTracks().forEach(track=>{
-peer.addTrack(track,localStream)
-})
-
-peer.ontrack=(e)=>{
-remoteVideo.srcObject=e.streams[0]
-}
-
-peer.onicecandidate=(e)=>{
-
-if(e.candidate){
-
-socket.emit("signal",{
-to:data.from,
-signal:{candidate:e.candidate}
-})
-
-}
-
-}
+createPeer()
 
 await peer.setRemoteDescription(data.signal.offer)
 
@@ -163,12 +134,14 @@ signal:{answer:answer}
 
 }
 
+// ANSWER
 if(data.signal.answer){
 
 await peer.setRemoteDescription(data.signal.answer)
 
 }
 
+// ICE
 if(data.signal.candidate){
 
 try{
@@ -179,7 +152,7 @@ await peer.addIceCandidate(data.signal.candidate)
 
 })
 
-// RECEIVE MESSAGE
+// TEXT MESSAGE
 socket.on("message",(msg)=>{
 addMessage("Stranger: "+msg)
 })
