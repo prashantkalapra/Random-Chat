@@ -1,43 +1,29 @@
 const express = require("express")
+const http = require("http")
+const { Server } = require("socket.io")
+
 const app = express()
-const http = require("http").createServer(app)
-const io = require("socket.io")(http)
+const server = http.createServer(app)
+const io = new Server(server)
 
 app.use(express.static("public"))
 
-let waitingVideo = null
 let waitingText = null
-
-let users = 0
+let waitingVideo = null
+let onlineUsers = 0
 
 io.on("connection", socket => {
 
-users++
-io.emit("users", users)
+onlineUsers++
+io.emit("users", onlineUsers)
 
-socket.on("find", type => {
+socket.on("find", mode => {
 
-if(type === "video"){
-
-if(waitingVideo){
-
-io.to(waitingVideo).emit("matched", socket.id)
-socket.emit("matched", waitingVideo)
-
-waitingVideo = null
-
-}else{
-
-waitingVideo = socket.id
-
-}
-
-}
-
-if(type === "text"){
+if(mode === "text"){
 
 if(waitingText){
 
+socket.partner = waitingText
 io.to(waitingText).emit("matched", socket.id)
 socket.emit("matched", waitingText)
 
@@ -51,52 +37,49 @@ waitingText = socket.id
 
 }
 
+if(mode === "video"){
+
+if(waitingVideo){
+
+socket.partner = waitingVideo
+io.to(waitingVideo).emit("matched", socket.id)
+socket.emit("matched", waitingVideo)
+
+waitingVideo = null
+
+}else{
+
+waitingVideo = socket.id
+
+}
+
+}
+
 })
 
-socket.on("offer", data => {
-
-io.to(data.to).emit("offer",{
-offer:data.offer,
-from:socket.id
-})
-
-})
-
-socket.on("answer", data => {
-
-io.to(data.to).emit("answer",{
-answer:data.answer
-})
-
-})
-
-socket.on("candidate", data => {
-
-io.to(data.to).emit("candidate",{
-candidate:data.candidate
-})
-
+socket.on("signal", data => {
+io.to(data.to).emit("signal", data)
 })
 
 socket.on("message", data => {
-
 io.to(data.to).emit("message", data.msg)
-
 })
 
-socket.on("next", data => {
+socket.on("next", () => {
 
-io.to(data.to).emit("partner-left")
+if(socket.partner){
+io.to(socket.partner).emit("partner-left")
+}
 
 })
 
 socket.on("disconnect", () => {
 
-users--
-io.emit("users", users)
+onlineUsers--
+io.emit("users", onlineUsers)
 
 })
 
 })
 
-http.listen(process.env.PORT || 3000)
+server.listen(process.env.PORT || 3000)

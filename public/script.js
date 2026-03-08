@@ -1,30 +1,28 @@
 const socket = io()
 
-let localStream
 let peer
-let partnerId = null
+let partner = null
 let mode = "text"
+let localStream
 
 const localVideo = document.getElementById("localVideo")
 const remoteVideo = document.getElementById("remoteVideo")
 const messages = document.getElementById("messages")
 
-function addMessage(msg){
-
-let div=document.createElement("div")
-div.innerText=msg
-messages.appendChild(div)
-
+function msg(text){
+const d=document.createElement("div")
+d.innerText=text
+messages.appendChild(d)
 }
 
-socket.on("users",count=>{
-document.getElementById("users").innerText="Live Users: "+count
+socket.on("users", n=>{
+document.getElementById("users").innerText="Online: "+n
 })
 
 function startText(){
 
 mode="text"
-addMessage("Searching stranger...")
+msg("Searching...")
 socket.emit("find","text")
 
 }
@@ -40,34 +38,32 @@ audio:true
 
 localVideo.srcObject = localStream
 
-addMessage("Searching stranger...")
-
+msg("Searching...")
 socket.emit("find","video")
 
 }
 
-socket.on("matched",id=>{
+socket.on("matched", id=>{
 
-partnerId=id
-
-addMessage("Stranger connected")
+partner=id
+msg("Stranger connected")
 
 if(mode==="video"){
-createPeer()
+startPeer(true)
 }
 
 })
 
-function createPeer(){
+function startPeer(initiator){
 
-peer=new RTCPeerConnection({
+peer = new RTCPeerConnection({
 iceServers:[
 {urls:"stun:stun.l.google.com:19302"}
 ]
 })
 
-localStream.getTracks().forEach(track=>{
-peer.addTrack(track,localStream)
+localStream.getTracks().forEach(t=>{
+peer.addTrack(t,localStream)
 })
 
 peer.ontrack=e=>{
@@ -75,83 +71,63 @@ remoteVideo.srcObject=e.streams[0]
 }
 
 peer.onicecandidate=e=>{
-
 if(e.candidate){
+socket.emit("signal",{to:partner,data:e.candidate,type:"candidate"})
+}
+}
 
-socket.emit("candidate",{
-candidate:e.candidate,
-to:partnerId
+if(initiator){
+
+peer.createOffer().then(o=>{
+peer.setLocalDescription(o)
+socket.emit("signal",{to:partner,data:o,type:"offer"})
 })
 
 }
 
 }
 
-createOffer()
+socket.on("signal", async d=>{
+
+if(d.type==="offer"){
+
+startPeer(false)
+
+await peer.setRemoteDescription(d.data)
+
+const ans = await peer.createAnswer()
+await peer.setLocalDescription(ans)
+
+socket.emit("signal",{to:partner,data:ans,type:"answer"})
 
 }
 
-async function createOffer(){
-
-const offer=await peer.createOffer()
-
-await peer.setLocalDescription(offer)
-
-socket.emit("offer",{
-offer:offer,
-to:partnerId
-})
-
+if(d.type==="answer"){
+await peer.setRemoteDescription(d.data)
 }
 
-socket.on("offer",async data=>{
+if(d.type==="candidate"){
+peer.addIceCandidate(d.data)
+}
 
-partnerId=data.from
-
-createPeer()
-
-await peer.setRemoteDescription(data.offer)
-
-const answer=await peer.createAnswer()
-
-await peer.setLocalDescription(answer)
-
-socket.emit("answer",{
-answer:answer,
-to:partnerId
-})
-
-})
-
-socket.on("answer",async data=>{
-await peer.setRemoteDescription(data.answer)
-})
-
-socket.on("candidate",async data=>{
-await peer.addIceCandidate(data.candidate)
 })
 
 function sendMessage(){
 
-let input=document.getElementById("messageInput")
+const input=document.getElementById("msg")
 
-let msg=input.value
+if(!input.value) return
 
-if(!msg) return
+msg("You: "+input.value)
 
-addMessage("You: "+msg)
-
-socket.emit("message",{
-msg:msg,
-to:partnerId
-})
+socket.emit("message",{to:partner,msg:input.value})
 
 input.value=""
 
 }
 
-socket.on("message",msg=>{
-addMessage("Stranger: "+msg)
+socket.on("message", m=>{
+msg("Stranger: "+m)
 })
 
 function nextUser(){
@@ -163,10 +139,12 @@ peer=null
 
 remoteVideo.srcObject=null
 
-socket.emit("next",{to:partnerId})
+msg("Searching new stranger...")
 
-addMessage("Searching new stranger...")
+socket.emit("next")
 
+setTimeout(()=>{
 socket.emit("find",mode)
+},500)
 
 }
