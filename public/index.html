@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Random Video Chat</title>
+
+<title>Random Text Chat</title>
 
 <style>
 
@@ -15,39 +16,23 @@ text-align:center;
 
 header{
 padding:20px;
-font-size:24px;
+font-size:26px;
 }
 
 #users{
 color:#4ade80;
-}
-
-#videos{
-display:flex;
-justify-content:center;
-gap:20px;
-margin-top:20px;
-}
-
-video{
-width:320px;
-height:240px;
-background:black;
-border-radius:10px;
-}
-
-.controls{
-margin-top:20px;
+margin-top:5px;
 }
 
 button{
 padding:12px 20px;
-margin:5px;
+margin:10px;
 border:none;
 border-radius:8px;
 background:#2563eb;
 color:white;
 cursor:pointer;
+font-size:16px;
 }
 
 button:hover{
@@ -61,11 +46,12 @@ margin-top:20px;
 }
 
 #messages{
-height:150px;
+height:300px;
 overflow:auto;
 border:1px solid #333;
 padding:10px;
 border-radius:8px;
+text-align:left;
 }
 
 input{
@@ -73,6 +59,7 @@ width:70%;
 padding:10px;
 border-radius:8px;
 border:none;
+margin-top:10px;
 }
 
 </style>
@@ -82,26 +69,22 @@ border:none;
 <body>
 
 <header>
-Random Chat  
+Random Text Chat
 <div id="users">Online: 0</div>
 </header>
 
-<div class="controls">
-<button onclick="startText()">Text Chat</button>
-<button onclick="startVideo()">Video Chat</button>
+<button onclick="startChat()">Start Chat</button>
 <button onclick="nextUser()">Next</button>
-</div>
-
-<div id="videos">
-<video id="localVideo" autoplay muted playsinline></video>
-<video id="remoteVideo" autoplay playsinline></video>
-</div>
 
 <div id="chat">
+
 <div id="messages"></div>
+
 <br>
-<input id="msg">
+
+<input id="msg" placeholder="Type message...">
 <button onclick="sendMessage()">Send</button>
+
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
